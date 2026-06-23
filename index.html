@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Namle</title>
+<style>
+  :root {
+    --color-correct: #6aaa64;
+    --color-present: #c9b458;
+    --color-absent: #787c7e;
+    --color-border: #d3d6da;
+    --color-border-active: #878a8c;
+    --color-text: #1a1a1b;
+    --color-bg: #ffffff;
+    --color-key-bg: #d3d6da;
+    --color-key-text: #1a1a1b;
+    --font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-family);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 65px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  #game-container {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Start from top so it grows downwards */
+    overflow: auto; /* Allow scrolling if it gets too long or wide */
+    padding: 20px 10px;
+  }
+
+  #board {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .row {
+    display: grid;
+    gap: 5px;
+  }
+
+  .tile {
+    width: 62px;
+    height: 62px;
+    border: 2px solid var(--color-border);
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 32px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: transform 0.2s;
+  }
+
+  .tile.active {
+    border-color: var(--color-border-active);
+    animation: popIn 0.1s;
+  }
+
+  /* Flip Animations */
+  .tile.correct { background-color: var(--color-correct); color: white; border-color: var(--color-correct); }
+  .tile.present { background-color: var(--color-present); color: white; border-color: var(--color-present); }
+  .tile.absent { background-color: var(--color-absent); color: white; border-color: var(--color-absent); }
+
+  @keyframes popIn {
+    0% { transform: scale(0.8); }
+    40% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+  }
+
+  .shake {
+    animation: shake 0.5s;
+  }
+
+  /* Keyboard */
+  #keyboard-container {
+    height: 200px;
+    padding: 0 8px;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+  }
+
+  .keyboard-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+    gap: 6px;
+  }
+
+  .key {
+    font-family: inherit;
+    font-weight: bold;
+    border: 0;
+    padding: 0;
+    height: 58px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    background-color: var(--color-key-bg);
+    color: var(--color-key-text);
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-transform: uppercase;
+    transition: background-color 0.2s;
+    font-size: 14px;
+    max-width: 43px;
+  }
+
+  .key.large {
+    flex: 1.5;
+    max-width: 65px;
+    font-size: 12px;
+  }
+
+  .key:active {
+    transform: scale(0.95);
+  }
+
+  .key.correct { background-color: var(--color-correct); color: white; }
+  .key.present { background-color: var(--color-present); color: white; }
+  .key.absent { background-color: var(--color-absent); color: white; }
+
+  /* Modal */
+  #modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  #modal.show {
+    display: flex;
+  }
+
+  .modal-content {
+    background: var(--color-bg);
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+    border: 1px solid var(--color-border);
+  }
+
+  .modal-content h2 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .modal-content p {
+    font-size: 18px;
+    color: var(--color-text);
+  }
+  
+  #stats-msg {
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>NAMLE</h1>
+  </header>
+
+  <div id="game-container">
+    <div id="board">
+      <!-- Rows will be injected here -->
+    </div>
+  </div>
+
+  <div id="keyboard-container">
+    <div class="keyboard-row">
+      <button class="key" data-key="q">q</button>
+      <button class="key" data-key="w">w</button>
+      <button class="key" data-key="e">e</button>
+      <button class="key" data-key="r">r</button>
+      <button class="key" data-key="t">t</button>
+      <button class="key" data-key="y">y</button>
+      <button class="key" data-key="u">u</button>
+      <button class="key" data-key="i">i</button>
+      <button class="key" data-key="o">o</button>
+      <button class="key" data-key="p">p</button>
+      <button class="key" data-key="š">š</button>
+      <button class="key" data-key="đ">đ</button>
+    </div>
+    <div class="keyboard-row">
+      <div style="flex: 0.5;"></div>
+      <button class="key" data-key="a">a</button>
+      <button class="key" data-key="s">s</button>
+      <button class="key" data-key="d">d</button>
+      <button class="key" data-key="f">f</button>
+      <button class="key" data-key="g">g</button>
+      <button class="key" data-key="h">h</button>
+      <button class="key" data-key="j">j</button>
+      <button class="key" data-key="k">k</button>
+      <button class="key" data-key="l">l</button>
+      <button class="key" data-key="č">č</button>
+      <button class="key" data-key="ć">ć</button>
+      <button class="key" data-key="ž">ž</button>
+      <div style="flex: 0.5;"></div>
+    </div>
+    <div class="keyboard-row">
+      <button class="key large" data-key="Enter">ENTER</button>
+      <button class="key" data-key="z">z</button>
+      <button class="key" data-key="x">x</button>
+      <button class="key" data-key="c">c</button>
+      <button class="key" data-key="v">v</button>
+      <button class="key" data-key="b">b</button>
+      <button class="key" data-key="n">n</button>
+      <button class="key" data-key="m">m</button>
+      <button class="key large" data-key="Backspace">DEL</button>
+    </div>
+  </div>
+
+  <div id="modal">
+    <div class="modal-content">
+      <h2>Čestitam!</h2>
+      <p id="stats-msg"></p>
+      <button onclick="location.reload()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; background-color: var(--color-correct); color: white; border-radius: 4px; font-weight: bold;">Play Again</button>
+    </div>
+  </div>
+
+<script>
+  // Hardcoded variable length word. Feel free to change this!
+  const TARGET_WORD = "AYAAN"; 
+  const MAX_GUESS_LENGTH = 10;
+  
+  let currentGuess = [];
+  let currentRowIndex = 0;
+  let gameStatus = 'active'; // 'active', 'won'
+
+  const boardElement = document.getElementById('board');
+  const modalElement = document.getElementById('modal');
+  const statsMsgElement = document.getElementById('stats-msg');
+  const keys = document.querySelectorAll('.key');
+
+  // Initialize the first row with just 1 empty tile
+  function createRow() {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = `row-${currentRowIndex}`;
+    row.style.gridTemplateColumns = `repeat(1, 62px)`;
+    
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.id = `tile-${currentRowIndex}-0`;
+    row.appendChild(tile);
+    
+    boardElement.appendChild(row);
+    // Scroll to the bottom if board gets too large
+    document.getElementById('game-container').scrollTop = document.getElementById('game-container').scrollHeight;
+  }
+
+  function init() {
+    createRow();
+    setupKeyboard();
+    document.addEventListener('keyup', handlePhysicalKeyboard);
+  }
+
+  function handleKeyInput(key) {
+    if (gameStatus !== 'active') return;
+
+    if (key === 'Enter') {
+      submitGuess();
+    } else if (key === 'Backspace') {
+      removeLetter();
+    } else if (/^[a-zA-ZščžćđŠČŽĆĐ]$/.test(key)) {
+      addLetter(key.toUpperCase());
+    }
+  }
+
+  function handlePhysicalKeyboard(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    handleKeyInput(e.key);
+  }
+
+  function setupKeyboard() {
+    keys.forEach(keyEl => {
+      keyEl.addEventListener('click', () => {
+        handleKeyInput(keyEl.dataset.key);
+      });
+    });
+  }
+
+  function addLetter(letter) {
+    if (currentGuess.length < MAX_GUESS_LENGTH) {
+      const row = document.getElementById(`row-${currentRowIndex}`);
+      
+      const currentTileIdx = currentGuess.length;
+      const tile = document.getElementById(`tile-${currentRowIndex}-${currentTileIdx}`);
+      tile.textContent = letter;
+      tile.classList.add('active');
+      
+      currentGuess.push(letter);
+      
+      // Add a new empty tile if we haven't hit the max guess length
+      if (currentGuess.length < MAX_GUESS_LENGTH) {
+        row.style.gridTemplateColumns = `repeat(${currentGuess.length + 1}, 62px)`;
+        const newTile = document.createElement('div');
+        newTile.className = 'tile';
+        newTile.id = `tile-${currentRowIndex}-${currentGuess.length}`;
+        row.appendChild(newTile);
+      }
+      
+      // Keep view centered/scrolled if word gets long
+      document.getElementById('game-container').scrollLeft = document.getElementById('game-container').scrollWidth;
+    }
+  }
+
+  function removeLetter() {
+    if (currentGuess.length > 0) {
+      const row = document.getElementById(`row-${currentRowIndex}`);
+      
+      // Remove the trailing empty tile if we are below max length
+      if (currentGuess.length < MAX_GUESS_LENGTH) {
+        const emptyTile = document.getElementById(`tile-${currentRowIndex}-${currentGuess.length}`);
+        row.removeChild(emptyTile);
+      }
+      
+      currentGuess.pop();
+      
+      // The previously active tile becomes the new empty tile
+      const newEmptyTile = document.getElementById(`tile-${currentRowIndex}-${currentGuess.length}`);
+      newEmptyTile.textContent = '';
+      newEmptyTile.classList.remove('active');
+      
+      row.style.gridTemplateColumns = `repeat(${currentGuess.length + 1}, 62px)`;
+    }
+  }
+
+  function submitGuess() {
+    if (currentGuess.length === 0) {
+      const row = document.getElementById(`row-${currentRowIndex}`);
+      row.classList.remove('shake');
+      void row.offsetWidth;
+      row.classList.add('shake');
+      return;
+    }
+
+    evaluateGuess();
+  }
+
+  function evaluateGuess() {
+    const guessStr = currentGuess.join('');
+    const targetArr = TARGET_WORD.split('');
+    const guessArr = [...currentGuess];
+    const guessLen = currentGuess.length;
+    const tileColors = new Array(guessLen).fill('absent');
+
+    // First pass: Find exact matches (correct)
+    for (let i = 0; i < guessLen; i++) {
+      if (i < TARGET_WORD.length && guessArr[i] === targetArr[i]) {
+        tileColors[i] = 'correct';
+        targetArr[i] = null; // Remove from target so it's not double-counted for 'present'
+        guessArr[i] = null;
+      }
+    }
+
+    // Second pass: Find present matches
+    for (let i = 0; i < guessLen; i++) {
+      if (guessArr[i] !== null && targetArr.includes(guessArr[i])) {
+        tileColors[i] = 'present';
+        targetArr[targetArr.indexOf(guessArr[i])] = null;
+      }
+    }
+
+    // Remove the trailing empty tile before evaluating (if one exists)
+    const row = document.getElementById(`row-${currentRowIndex}`);
+    if (currentGuess.length < MAX_GUESS_LENGTH) {
+      const emptyTile = document.getElementById(`tile-${currentRowIndex}-${currentGuess.length}`);
+      if (emptyTile) {
+        row.removeChild(emptyTile);
+        row.style.gridTemplateColumns = `repeat(${currentGuess.length}, 62px)`;
+      }
+    }
+
+    // Apply colors to board tiles with a slight delay for flipping effect
+    for (let i = 0; i < guessLen; i++) {
+      setTimeout(() => {
+        const tile = document.getElementById(`tile-${currentRowIndex}-${i}`);
+        tile.classList.remove('active');
+        tile.classList.add(tileColors[i]);
+        updateKeyboardColor(currentGuess[i], tileColors[i]);
+      }, i * 200); // 200ms delay per tile
+    }
+
+    // Wait for animations to finish before resolving state
+    setTimeout(() => {
+      if (guessStr === TARGET_WORD) {
+        gameStatus = 'won';
+        showWinModal();
+      } else {
+        // Prepare next row for infinite guesses
+        currentRowIndex++;
+        currentGuess = [];
+        createRow();
+      }
+    }, guessLen * 200 + 100);
+  }
+
+  function updateKeyboardColor(letter, status) {
+    const keyBtn = document.querySelector(`.key[data-key="${letter.toLowerCase()}"]`);
+    if (!keyBtn) return;
+
+    // Hierarchy of colors: correct > present > absent
+    const currentClass = keyBtn.classList.contains('correct') ? 'correct' :
+                         keyBtn.classList.contains('present') ? 'present' :
+                         keyBtn.classList.contains('absent') ? 'absent' : '';
+
+    if (status === 'correct') {
+      keyBtn.classList.remove('present', 'absent');
+      keyBtn.classList.add('correct');
+    } else if (status === 'present' && currentClass !== 'correct') {
+      keyBtn.classList.remove('absent');
+      keyBtn.classList.add('present');
+    } else if (status === 'absent' && currentClass !== 'correct' && currentClass !== 'present') {
+      keyBtn.classList.add('absent');
+    }
+  }
+
+  function showWinModal() {
+
+    statsMsgElement.textContent = `Ime ste uganili v `
+    switch (currentRowIndex + 1) {
+      case 1:
+        statsMsgElement.textContent += 'enem poskusu';
+        break;
+      case 2:
+        statsMsgElement.textContent += 'dveh poskusih';
+        break;
+      default:
+        statsMsgElement.textContent += `${currentRowIndex + 1} poskusih`;
+    }
+    statsMsgElement.textContent += `!`;
+    modalElement.classList.add('show');
+  }
+
+  init();
+</script>
+</body>
+</html>
