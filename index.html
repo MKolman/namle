@@ -291,7 +291,8 @@
 
 <script>
   // Load variable length word from Google Sheets
-  let TARGET_WORD = ""; 
+  let TARGET_WORD = "";
+  let BABY_DESCRIPTION = "";
   const MAX_GUESS_LENGTH = 8;
   
   let currentGuess = [];
@@ -321,6 +322,8 @@
         TARGET_WORD = "ERROR";
         errorElement.textContent = "No word found in Google Sheets.";
       }
+
+      BABY_DESCRIPTION = csvText.split('\n')[1]?.trim().slice(1, -1);
     } catch (e) {
       console.error('Failed to load target word from Google Sheets', e);
       TARGET_WORD = "FALLBACK"; 
@@ -528,7 +531,7 @@
     const grid = guessColorHistory
       .map(row => row.map(c => emojiMap[c]).join(''))
       .join('\n');
-    return `Namle: Ime sem uganil/a v ${triesLabel}!\n${grid}`;
+    return `Uganil/a sem ime ${BABY_DESCRIPTION} v ${triesLabel}!\n${grid}\nhttps://namle.kolman.si`;
   }
 
   function showWinState() {
