@@ -51,17 +51,18 @@
 
   #game-container {
     flex-grow: 1;
-    overflow: auto; /* Allow scrolling if it gets too long or wide */
+    overflow: auto;
     padding: 20px 10px;
+    display: flex;
+    justify-content: flex-start;
+    flex-direction: column;
+    align-items: center;
   }
 
   #board {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    min-width: max-content;
-    margin: 0 auto;
-    justify-self: center;
   }
 
   .row {
@@ -155,6 +156,47 @@
   .key.present { background-color: var(--color-present); color: white; }
   .key.absent { background-color: var(--color-absent); color: white; }
 
+  /* Win action buttons */
+  #win-actions {
+    display: none;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 8px;
+    flex-shrink: 0;
+  }
+
+  #win-actions.show {
+    display: flex;
+  }
+
+  .win-btn {
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 14px 32px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.1s;
+  }
+
+  .win-btn:active {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+
+  #btn-share {
+    background-color: var(--color-correct);
+    color: white;
+  }
+
+  #btn-play-again {
+    background-color: var(--color-key-bg);
+    color: var(--color-key-text);
+  }
+
   /* Modal */
   #modal {
     position: fixed;
@@ -242,12 +284,9 @@
       <button class="key large" data-key="Backspace">DEL</button>
   </div>
 
-  <div id="modal">
-    <div class="modal-content">
-      <h2>Čestitam!</h2>
-      <p id="stats-msg"></p>
-      <button onclick="location.reload()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; background-color: var(--color-correct); color: white; border-radius: 4px; font-weight: bold;">Play Again</button>
-    </div>
+  <div id="win-actions">
+    <button class="win-btn" id="btn-share">&#x1F4CB; Deli</button>
+    <button class="win-btn" id="btn-play-again" onclick="location.reload()">&#x1F501; Znova</button>
   </div>
 
 <script>
@@ -258,11 +297,12 @@
   let currentGuess = [];
   let currentRowIndex = 0;
   let gameStatus = 'active'; // 'active', 'won'
+  let guessColorHistory = []; // tracks tile colors per row for share
 
   const errorElement = document.getElementById('error');
   const boardElement = document.getElementById('board');
-  const modalElement = document.getElementById('modal');
-  const statsMsgElement = document.getElementById('stats-msg');
+  const winActionsEl = document.getElementById('win-actions');
+  const keyboardEl = document.getElementById('keyboard-container');
   const keys = document.querySelectorAll('.key');
 
   async function fetchTargetWord() {
@@ -439,11 +479,14 @@
       }, i * 200); // 200ms delay per tile
     }
 
+    // Save this row's colors for share text
+    guessColorHistory.push([...tileColors]);
+
     // Wait for animations to finish before resolving state
     setTimeout(() => {
       if (guessStr === TARGET_WORD) {
         gameStatus = 'won';
-        showWinModal();
+        showWinState();
       } else {
         // Prepare next row for infinite guesses
         currentRowIndex++;
@@ -473,20 +516,39 @@
     }
   }
 
-  function showWinModal() {
-    statsMsgElement.textContent = `Ime ste uganili v `
-    switch (currentRowIndex + 1) {
-      case 1:
-        statsMsgElement.textContent += 'enem poskusu';
-        break;
-      case 2:
-        statsMsgElement.textContent += 'dveh poskusih';
-        break;
-      default:
-        statsMsgElement.textContent += `${currentRowIndex + 1} poskusih`;
+  function buildShareText() {
+    const tries = currentRowIndex + 1;
+    let triesLabel;
+    switch (tries) {
+      case 1: triesLabel = 'enem poskusu'; break;
+      case 2: triesLabel = 'dveh poskusih'; break;
+      default: triesLabel = `${tries} poskusih`;
     }
-    statsMsgElement.textContent += `!`;
-    modalElement.classList.add('show');
+    const emojiMap = { correct: '🟩', present: '🟨', absent: '⬜' };
+    const grid = guessColorHistory
+      .map(row => row.map(c => emojiMap[c]).join(''))
+      .join('\n');
+    return `Namle: Ime sem uganil/a v ${triesLabel}!\n${grid}`;
+  }
+
+  function showWinState() {
+    // Swap keyboard for action buttons
+    keyboardEl.style.display = 'none';
+    winActionsEl.classList.add('show');
+
+    // Wire up share button
+    document.getElementById('btn-share').addEventListener('click', () => {
+      const text = buildShareText();
+      if (navigator.share) {
+        navigator.share({ text }).catch((e) => {errorsElement.textContent = `Deljenje ni uspelo. ${e}`;});
+      } else {
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.getElementById('btn-share');
+          btn.textContent = '✓ Kopirano!';
+          setTimeout(() => { btn.innerHTML = '&#x1F4CB; Deli'; }, 2000);
+        }).catch(() => {});
+      }
+    });
   }
 
   fetchTargetWord();
